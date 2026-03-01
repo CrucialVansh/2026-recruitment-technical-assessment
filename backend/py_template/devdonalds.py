@@ -44,15 +44,54 @@ def parse():
 # Takes in a recipeName and returns it in a form that 
 def parse_handwriting(recipeName: str) -> Union[str | None]:
 	# TODO: implement me
-	return recipeName
+	whitespace = re.compile(r'[-_\s]+')
+	recipeName = whitespace.sub(" ", recipeName)
+	rm_spec_char = re.compile(r'[^a-zA-Z\s]')
+	recipeName = rm_spec_char.sub('', recipeName)
+
+	if not recipeName:
+		return None
+	else:
+		return recipeName.title().strip()
 
 
 # [TASK 2] ====================================================================
 # Endpoint that adds a CookbookEntry to your magical cookbook
+
+# Assuming saving means to save in memory, I'm gonna use a global variable
+cookbook: Dict[str, CookbookEntry] = {}
+
 @app.route('/entry', methods=['POST'])
 def create_entry():
 	# TODO: implement me
-	return 'not implemented', 500
+	data = request.get_json()
+	name = data.get("name")
+	entry_type = data.get("type")
+
+	if name in cookbook:
+		return 'Name already exists', 400
+
+	if entry_type == "ingredient":
+		cook_time = data.get("cookTime")
+		if cook_time is None or cook_time < 0:
+			return 'Invalid cookTime', 400
+
+		cookbook[name] = Ingredient(name=name, cook_time=cook_time)
+
+	elif entry_type == "recipe":
+		required_items = data.get("requiredItems", [])
+
+		item_names = [item["name"] for item in required_items]
+		if len(item_names) != len(set(item_names)):
+			return 'Duplicate items in recipe', 400
+
+		items_list = [RequiredItem(name=i["name"], quantity=i["quantity"]) for i in required_items]
+		cookbook[name] = Recipe(name=name, required_items=items_list)
+
+	else:
+		return 'Invalid type', 400
+
+	return '', 200
 
 
 # [TASK 3] ====================================================================
